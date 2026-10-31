@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مطابقة أكواد وأسعار SFDA مع أدفاك HIS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="core.js"></script>
+<style>
+  :root{
+    --bg:#f4f6f8; --card:#fff; --ink:#1b2430; --muted:#66727f; --line:#e3e8ee;
+    --brand:#0f6e6a; --brand-2:#e6f3f2; --warn:#b26a00; --warn-2:#fff4e0;
+    --bad:#b42318; --bad-2:#fdecea; --ok:#1e7b34; --ok-2:#e7f5ea; --info:#2557a7; --info-2:#e8effb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"IBM Plex Sans Arabic",Tahoma,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:var(--brand);color:#fff;padding:18px 28px}
+  header h1{margin:0;font-size:20px;font-weight:700}
+  header p{margin:4px 0 0;opacity:.85;font-size:13px}
+  main{max-width:1400px;margin:0 auto;padding:20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:16px;margin:0 0 12px}
+  .drops{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .drop{border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:.15s;min-height:110px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+  .drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-2)}
+  .drop.done{border-style:solid;border-color:var(--ok);background:var(--ok-2)}
+  .drop b{font-size:14px}
+  .drop small{color:var(--muted)}
+  .drop .fn{font-size:12px;color:var(--ok);word-break:break-all}
+  .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:14px}
+  label.opt{display:flex;gap:6px;align-items:center;color:var(--muted)}
+  input[type=number]{width:80px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:inherit}
+  button{font-family:inherit;font-size:14px;border:0;border-radius:8px;padding:9px 18px;cursor:pointer;background:var(--brand);color:#fff;font-weight:600}
+  button.sec{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .hint{color:var(--muted);font-size:12.5px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+  .stat{border-radius:10px;padding:12px 14px;background:#f8fafb;border:1px solid var(--line);cursor:pointer}
+  .stat .n{font-size:24px;font-weight:700}
+  .stat .l{font-size:12.5px;color:var(--muted)}
+  .stat.ok{background:var(--ok-2);border-color:#cde8d4}.stat.ok .n{color:var(--ok)}
+  .stat.warn{background:var(--warn-2);border-color:#f3dfb8}.stat.warn .n{color:var(--warn)}
+  .stat.bad{background:var(--bad-2);border-color:#f5cdc8}.stat.bad .n{color:var(--bad)}
+  .stat.info{background:var(--info-2);border-color:#cfdcf3}.stat.info .n{color:var(--info)}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .tab{padding:9px 14px;cursor:pointer;border-radius:8px 8px 0 0;color:var(--muted);font-weight:500;border:1px solid transparent;border-bottom:0;margin-bottom:-1px;background:none}
+  .tab.active{background:#fff;color:var(--ink);border-color:var(--line)}
+  .tab .c{display:inline-block;background:#eef1f4;border-radius:10px;padding:0 7px;font-size:12px;margin-inline-start:4px}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .toolbar input[type=search]{flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit}
+  .desc{background:#f8fafb;border-inline-start:3px solid var(--brand);padding:8px 12px;border-radius:6px;margin-bottom:10px;color:#3c4652;font-size:13px}
+  .tblwrap{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:8px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th{background:#f2f5f7;position:sticky;top:0;z-index:1;font-weight:600}
+  td.wrap{white-space:normal;min-width:220px}
+  tr:hover td{background:#fafcfd}
+  .num{font-variant-numeric:tabular-nums;direction:ltr;text-align:left}
+  .ltr{direction:ltr;unicode-bidi:embed}
+  .up{color:var(--bad);font-weight:600}.down{color:var(--ok);font-weight:600}
+  .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px}
+  .p-ok{background:var(--ok-2);color:var(--ok)}.p-bad{background:var(--bad-2);color:var(--bad)}.p-na{background:#eef1f4;color:var(--muted)}
+  .reason{color:var(--warn);font-size:12.5px;white-space:normal;min-width:240px}
+  textarea{width:100%;min-height:320px;font-family:Consolas,"Courier New",monospace;font-size:12.5px;direction:ltr;text-align:left;border:1px solid var(--line);border-radius:8px;padding:10px;background:#0f1720;color:#d6e2ee}
+  .sqlsum{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;color:var(--muted)}
+  .sqlsum b{color:var(--ink)}
+  .loading{display:none;align-items:center;gap:10px;color:var(--brand);font-weight:600}
+  .spin{width:18px;height:18px;border:3px solid var(--brand-2);border-top-color:var(--brand);border-radius:50%;animation:s 0.8s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .hidden{display:none}
+  .more{padding:8px;text-align:center;color:var(--muted);font-size:12.5px}
+  @media (max-width:800px){.drops{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>مطابقة أكواد وأسعار SFDA مع نظام أدفاك HIS</h1>
+  <p>ارفع ملفات الشهر الثلاثة. المعالجة كلها بتتم في المتصفح ومفيش أي بيانات بتترفع لأي سيرفر.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>١. الملفات</h2>
+    <div class="drops">
+      <div class="drop" data-k="his"><b>ملف أدفاك (المخزون)</b><small>Book1: ITM_CD, GTIN, RegisterNumber, Public price…</small><span class="fn"></span></div>
+      <div class="drop" data-k="drugs"><b>ملف أدوية SFDA</b><small>SFDA_Drugs: registerNumber, oldRegisterNumber, price…</small><span class="fn"></span></div>
+      <div class="drop" data-k="herbal"><b>ملف SFDA أعشاب/صحي</b><small>SFDA_Herbal: registerNumber (بدون تسعير)</small><span class="fn"></span></div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" multiple class="hidden">
+    <div class="row">
+      <button class="sec" id="pickAll">اختيار الملفات الثلاثة مرة واحدة</button>
+      <label class="opt">تجاهل فروق السعر أقل من <input type="number" id="minDiff" value="0.05" step="0.01" min="0"> ريال</label>
+      <label class="opt">أي فرق سعر أكبر من <input type="number" id="tol" value="50" step="5" min="0"> % يتحول للمراجعة</label>
+      <button id="run" disabled>ابدأ المقارنة</button>
+      <span class="loading" id="loading"><span class="spin"></span><span id="loadMsg">جاري قراءة الملفات…</span></span>
+    </div>
+    <p class="hint">النظام بيتعرف على نوع كل ملف تلقائياً من أسماء الأعمدة، فممكن تسحب الملفات التلاتة مرة واحدة على أي خانة.</p>
+  </section>
+
+  <section class="card hidden" id="summaryCard">
+    <h2>٢. الملخص</h2>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section class="card hidden" id="resultsCard">
+    <h2>٣. التفاصيل</h2>
+    <div class="tabs" id="tabs"></div>
+    <div id="tabDesc" class="desc"></div>
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="بحث بكود الصنف أو الاسم أو كود SFDA…">
+      <span id="selCtl" class="hidden">
+        <button class="sec" id="selAll">تحديد الكل</button>
+        <button class="sec" id="selNone">إلغاء التحديد</button>
+      </span>
+      <button class="sec" id="exportXlsx">تصدير كل النتائج Excel</button>
+    </div>
+    <div class="tblwrap"><table id="tbl"></table></div>
+    <div class="more" id="more"></div>
+  </section>
+
+  <section class="card hidden" id="sqlCard">
+    <h2>٤. سكريبت التحديث على HIS</h2>
+    <div class="sqlsum" id="sqlsum"></div>
+    <p class="hint">السكريبت بيتبني من البنود المحددة (✓) في التبويبات. البنود المؤكدة بتكون متحددة تلقائياً، وبنود المراجعة بتحددها بنفسك بعد ما تراجعها.</p>
+    <textarea id="sql" readonly></textarea>
+    <div class="row">
+      <button id="copySql">نسخ السكريبت</button>
+      <button class="sec" id="dlSql">تحميل ملف .sql</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const files = { his: null, drugs: null, herbal: null };   // {name, rows}
+  let R = null;             // comparison result
+  let sfdaDate = '';
+  const sel = { codeUpdates: new Set(), gtinCodeSuggest: new Set(), priceConfirmed: new Set(), priceReview: new Set(), gtinDiff: new Set() };
+  let curTab = 'codeUpdates';
+  const ROW_LIMIT = 600;
+
+  /* ---------------- file reading in a worker ---------------- */
+  const workerSrc = `
+    importScripts('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
+    onmessage = e => {
+      try {
+        const wb = XLSX.read(e.data.buf, { type: 'array', dense: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        postMessage({ ok: true, name: e.data.name, rows });
+      } catch (err) { postMessage({ ok: false, name: e.data.name, error: String(err) }); }
+    };`;
+  let worker = null;
+  function readFile(file) {
+    return new Promise((resolve, reject) => {
+      if (!worker) worker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' })));
+      const fr = new FileReader();
+      fr.onload = () => {
+        const handler = e => {
+          if (e.data.name !== file.name) return;
+          worker.removeEventListener('message', handler);
+          e.data.ok ? resolve(e.data.rows) : reject(new Error(e.data.error));
+        };
+        worker.addEventListener('message', handler);
+        worker.postMessage({ buf: fr.result, name: file.name }, [fr.result]);
+      };
+      fr.onerror = () => reject(fr.error);
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
+  async function handleFiles(list, hintKey) {
+    loading(true, 'جاري قراءة الملفات…');
+    for (const f of list) {
+      try {
+        $('#loadMsg').textContent = 'جاري قراءة ' + f.name + ' …';
+        const rows = await readFile(f);
+        if (!rows.length) { alert('الملف فاضي: ' + f.name); continue; }
+        let k = SFDACore.detectType(Object.keys(rows[0])) || hintKey;
+        if (!k) { alert('مش قادر أتعرف على نوع الملف: ' + f.name); continue; }
+        files[k] = { name: f.name, rows };
+        if (k !== 'his') { const m = f.name.match(/(\d{4}-\d{2}-\d{2})/); if (m) sfdaDate = m[1]; }
+        const box = document.querySelector(`.drop[data-k="${k}"]`);
+        box.classList.add('done');
+        box.querySelector('.fn').textContent = f.name + ' — ' + rows.length.toLocaleString('en') + ' سطر';
+      } catch (err) { alert('خطأ في قراءة ' + f.name + '\n' + err.message); }
+    }
+    loading(false);
+    $('#run').disabled = !(files.his && files.drugs);
+  }
+
+  function loading(on, msg) { $('#loading').style.display = on ? 'flex' : 'none'; if (msg) $('#loadMsg').textContent = msg; }
+
+  let pendingKey = null;
+  document.querySelectorAll('.drop').forEach(d => {
+    d.addEventListener('click', () => { pendingKey = d.dataset.k; $('#fileInput').click(); });
+    d.addEventListener('dragover', e => { e.preventDefault(); d.classList.add('over'); });
+    d.addEventListener('dragleave', () => d.classList.remove('over'));
+    d.addEventListener('drop', e => { e.preventDefault(); d.classList.remove('over'); handleFiles([...e.dataTransfer.files], d.dataset.k); });
+  });
+  $('#pickAll').onclick = () => { pendingKey = null; $('#fileInput').click(); };
+  $('#fileInput').onchange = e => { handleFiles([...e.target.files], pendingKey); e.target.value = ''; };
+
+  /* ---------------- run comparison ---------------- */
+  $('#run').onclick = () => {
+    loading(true, 'جاري المقارنة…');
+    setTimeout(() => {
+      R = SFDACore.compare(files.his.rows, files.drugs.rows, files.herbal ? files.herbal.rows : [], {
+        tolerancePct: parseFloat($('#tol').value) || 50,
+        minDiff: parseFloat($('#minDiff').value) || 0,
+      });
+      Object.values(sel).forEach(s => s.clear());
+      R.codeUpdates.forEach(r => sel.codeUpdates.add(r.id));
+      R.priceConfirmed.forEach(r => sel.priceConfirmed.add(r.id));
+      loading(false);
+      ['#summaryCard', '#resultsCard', '#sqlCard'].forEach(s => $(s).classList.remove('hidden'));
+      renderStats(); renderTabs(); renderTable(); renderSql();
+      $('#summaryCard').scrollIntoView({ behavior: 'smooth' });
+    }, 30);
+  };
+
+  /* ---------------- tabs definition ---------------- */
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const money = n => n === null || n === undefined ? '' : Number(n).toFixed(2);
+  const yesNo = b => b ? '<span class="pill p-ok">مطابق</span>' : '<span class="pill p-bad">مختلف</span>';
+  const packCell = r => r.packState === 'match' ? `<span class="pill p-ok">${r.namePack} = ${r.rec.pack}</span>`
+    : r.packState === 'mismatch' ? `<span class="pill p-bad">${r.namePack} ≠ ${r.rec.pack}</span>`
+    : `<span class="pill p-na">؟ / ${r.rec.pack ?? ''}</span>`;
+  const sfdaPackTxt = rec => [rec.pack, rec.packType, rec.size ? rec.size + ' ' + rec.sizeUnit : ''].filter(Boolean).join(' · ');
+  const diffCell = r => `<span class="${r.diff > 0 ? 'up' : 'down'}">${r.diff > 0 ? '+' : ''}${money(r.diff)}</span>` + (r.pct !== null ? ` <small>(${r.pct > 0 ? '+' : ''}${r.pct.toFixed(1)}%)</small>` : '');
+
+  const TABS = [
+    { k: 'codeUpdates', t: 'تحديث كود قديم ← جديد', sel: true, cls: 'warn',
+      d: 'أصناف كود SFDA بتاعها في النظام هو <b>الكود القديم</b> (oldRegisterNumber) في ملف SFDA. السكريبت بيحدث HM_NO للكود الجديد. <b>محددة تلقائياً.</b>',
+      cols: ['كود الصنف', 'الاسم في النظام', 'اسم SFDA', 'الكود القديم', 'الكود الجديد', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<td class="wrap">${esc(r.rec.name)}</td>`, `<span class="ltr">${esc(r.codeRaw)}</span>`, `<b class="ltr">${esc(r.newCode)}</b>`, r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, SFDA_Name: r.rec.name, Old_Code: r.codeRaw, New_Code: r.newCode, Qty: r.qty }) },
+    { k: 'gtinCodeSuggest', t: 'كود مقترح من الباركود', sel: true, cls: 'info',
+      d: 'أصناف كودها <b>فاضي أو مش موجود</b> في SFDA، بس الباركود (GTIN) بتاعها مطابق لصنف في SFDA. راجع الاسم وحدد اللي متأكد منه. التحديث هنا بيكون بـ ITM_CD.',
+      cols: ['كود الصنف', 'الاسم في النظام', 'اسم SFDA', 'الكود الحالي', 'الكود المقترح', 'GTIN', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<td class="wrap">${esc(r.rec.name)}</td>`, `<span class="ltr">${esc(r.codeRaw || '—')}</span>`, `<b class="ltr">${esc(r.newCode)}</b>`, `<span class="ltr">${esc(r.gtinRaw)}</span>`, r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, SFDA_Name: r.rec.name, Current_Code: r.codeRaw, Suggested_Code: r.newCode, GTIN: r.gtinRaw, Qty: r.qty }) },
+    { k: 'priceConfirmed', t: 'فروق أسعار مؤكدة', sel: true, cls: 'ok',
+      d: 'الكود مطابق، وحجم العلبة متأكد منه (العدد في اسم الصنف = packageSize في SFDA، أو الباركود مطابق)، والفرق في الحدود المسموحة. <b>محددة تلقائياً.</b>',
+      cols: ['كود الصنف', 'الاسم في النظام', 'اسم SFDA', 'كود SFDA', 'العلبة (اسم/SFDA)', 'الباركود', 'سعر النظام', 'سعر SFDA', 'الفرق', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<td class="wrap">${esc(r.rec.name)}</td>`, `<span class="ltr">${esc(r.rec.codeRaw)}</span>`, packCell(r), yesNo(r.gtinEq), `<span class="num">${money(r.hp)}</span>`, `<b class="num">${money(r.sp)}</b>`, diffCell(r), r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, SFDA_Name: r.rec.name, SFDA_Code: r.rec.codeRaw, Name_Pack: r.namePack, SFDA_Pack: r.rec.pack, GTIN_Match: r.gtinEq ? 'Yes' : 'No', HIS_Price: r.hp, SFDA_Price: r.sp, Diff: r.diff, Diff_Pct: r.pct === null ? '' : +r.pct.toFixed(1), Qty: r.qty }) },
+    { k: 'priceReview', t: 'فروق أسعار للمراجعة', sel: true, cls: 'bad',
+      d: 'فيه فرق سعر بس محتاج تتأكد بنفسك قبل التحديث: حجم العلبة مختلف أو مش واضح، أو الفرق كبير، أو النظام بيبيع بالوحدة. <b>مش محددة</b>، حدد اللي راجعته.',
+      cols: ['كود الصنف', 'الاسم في النظام', 'اسم SFDA', 'علبة SFDA', 'العلبة (اسم/SFDA)', 'الباركود', 'سعر النظام', 'سعر SFDA', 'الفرق', 'السبب', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<td class="wrap">${esc(r.rec.name)}</td>`, esc(sfdaPackTxt(r.rec)), packCell(r), yesNo(r.gtinEq), `<span class="num">${money(r.hp)}</span>`, `<b class="num">${money(r.sp)}</b>`, diffCell(r), `<td class="reason">${esc(r.reasons.join(' • '))}</td>`, r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, SFDA_Name: r.rec.name, SFDA_Code: r.rec.codeRaw, SFDA_Pack: sfdaPackTxt(r.rec), Name_Pack: r.namePack ?? '', GTIN_Match: r.gtinEq ? 'Yes' : 'No', HIS_Price: r.hp, SFDA_Price: r.sp, Diff: r.diff, Diff_Pct: r.pct === null ? '' : +r.pct.toFixed(1), Reason: r.reasons.join(' | '), Qty: r.qty }) },
+    { k: 'gtinDiff', t: 'باركود مختلف عن SFDA', sel: true, cls: '',
+      d: 'الكود مطابق بس الـ GTIN في النظام مختلف عن المسجل في SFDA. ده مهم لرصد. <b>مش محددة</b>، لأن ممكن يكون للصنف أكتر من باركود.',
+      cols: ['كود الصنف', 'الاسم في النظام', 'اسم SFDA', 'كود SFDA', 'GTIN النظام', 'GTIN SFDA', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<td class="wrap">${esc(r.rec.name)}</td>`, `<span class="ltr">${esc(r.rec.codeRaw)}</span>`, `<span class="ltr">${esc(r.gtinRaw || '—')}</span>`, `<b class="ltr">${esc(r.rec.gtinRaw)}</b>`, r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, SFDA_Name: r.rec.name, SFDA_Code: r.rec.codeRaw, HIS_GTIN: r.gtinRaw, SFDA_GTIN: r.rec.gtinRaw, Qty: r.qty }) },
+    { k: 'ambiguous', t: 'غير محسوم', cls: 'bad',
+      d: 'الكود القديم أو الباركود مرتبط بأكتر من صنف في SFDA، فلازم تحدد الصح يدوياً.',
+      cols: ['كود الصنف', 'الاسم في النظام', 'الكود', 'GTIN', 'الملاحظة'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<span class="ltr">${esc(r.codeRaw)}</span>`, `<span class="ltr">${esc(r.gtinRaw)}</span>`, `<td class="reason">${esc(r.note)}</td>`],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, Code: r.codeRaw, GTIN: r.gtinRaw, Note: r.note }) },
+    { k: 'notFound', t: 'كود غير موجود في SFDA', cls: 'bad',
+      d: 'الكود موجود في النظام بس مش لاقيه في ملف الأدوية (لا جديد ولا قديم) ولا في ملف الأعشاب، والباركود كمان مش مطابق. ممكن يكون مستحضر ملغي أو جهاز طبي أو كود غلط.',
+      cols: ['كود الصنف', 'الاسم في النظام', 'كود SFDA في النظام', 'GTIN', 'المجموعة', 'السعر', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<span class="ltr">${esc(r.codeRaw)}</span>`, `<span class="ltr">${esc(r.gtinRaw)}</span>`, esc(r.group), `<span class="num">${money(r.price)}</span>`, r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, Code: r.codeRaw, GTIN: r.gtinRaw, Group: r.group, Price: r.price, Qty: r.qty }) },
+    { k: 'herbal', t: 'أعشاب / صحي', cls: 'info',
+      d: 'أصناف كودها موجود في ملف SFDA للأعشاب والمستحضرات الصحية. الكود سليم، والملف ده مفيهوش تسعير.',
+      cols: ['كود الصنف', 'الاسم في النظام', 'اسم SFDA', 'كود SFDA', 'النوع', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<td class="wrap">${esc(r.hrec.name)}</td>`, `<span class="ltr">${esc(r.codeRaw)}</span>`, esc(r.hrec.type), r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, SFDA_Name: r.hrec.name, Code: r.codeRaw, Type: r.hrec.type, Qty: r.qty }) },
+    { k: 'current', t: 'كود سليم', cls: 'ok',
+      d: 'الكود مطابق للكود الحالي في SFDA.',
+      cols: ['كود الصنف', 'الاسم في النظام', 'اسم SFDA', 'كود SFDA', 'سعر النظام', 'سعر SFDA', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<td class="wrap">${esc(r.rec.name)}</td>`, `<span class="ltr">${esc(r.codeRaw)}</span>`, `<span class="num">${money(r.price)}</span>`, `<span class="num">${money(r.rec.price)}</span>`, r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, SFDA_Name: r.rec.name, Code: r.codeRaw, HIS_Price: r.price, SFDA_Price: r.rec.price, Qty: r.qty }) },
+    { k: 'noCode', t: 'بدون كود SFDA', cls: '',
+      d: 'أصناف من غير كود SFDA في النظام (NULL أو فاضي)، والباركود بتاعها مش مطابق لأي دواء في SFDA. أغلبها مستلزمات أو أصناف غير دوائية.',
+      cols: ['كود الصنف', 'الاسم في النظام', 'GTIN', 'المجموعة', 'السعر', 'الرصيد'],
+      row: r => [r.id, `<td class="wrap">${esc(r.name)}</td>`, `<span class="ltr">${esc(r.gtinRaw)}</span>`, esc(r.group), `<span class="num">${money(r.price)}</span>`, r.qty],
+      xl: r => ({ ITM_CD: r.id, Name: r.name, GTIN: r.gtinRaw, Group: r.group, Price: r.price, Qty: r.qty }) },
+  ];
+
+  function renderStats() {
+    const s = R.stats;
+    const cards = [
+      ['total', s.total, 'إجمالي الأصناف في ملف النظام', ''],
+      ['current', s.current, 'كود SFDA سليم', 'ok'],
+      ['codeUpdates', s.codeUpdates, 'كود قديم محتاج تحديث', 'warn'],
+      ['gtinCodeSuggest', s.gtinCodeSuggest, 'كود مقترح من الباركود', 'info'],
+      ['priceConfirmed', s.priceConfirmed, 'فرق سعر مؤكد', 'ok'],
+      ['priceReview', s.priceReview, 'فرق سعر للمراجعة', 'bad'],
+      ['gtinDiff', s.gtinDiff, 'باركود مختلف عن SFDA', ''],
+      ['herbal', s.herbal, 'أعشاب / صحي', 'info'],
+      ['notFound', s.notFound, 'كود غير موجود في SFDA', 'bad'],
+      ['noCode', s.noCode, 'بدون كود SFDA', ''],
+    ];
+    if (s.ambiguous) cards.splice(4, 0, ['ambiguous', s.ambiguous, 'غير محسوم', 'bad']);
+    $('#stats').innerHTML = cards.map(([k, n, l, c]) => `<div class="stat ${c}" data-k="${k}"><div class="n">${n.toLocaleString('en')}</div><div class="l">${l}</div></div>`).join('')
+      + `<div class="stat"><div class="n" style="font-size:16px">${s.sfdaDrugs.toLocaleString('en')} / ${s.sfdaHerbal.toLocaleString('en')}</div><div class="l">أدوية / أعشاب في ملفات SFDA${sfdaDate ? ' — ' + sfdaDate : ''}</div></div>`;
+    document.querySelectorAll('.stat[data-k]').forEach(el => el.onclick = () => {
+      if (el.dataset.k === 'total') return;
+      curTab = el.dataset.k; renderTabs(); renderTable(); $('#resultsCard').scrollIntoView({ behavior: 'smooth' });
+    });
+  }
+
+  function renderTabs() {
+    $('#tabs').innerHTML = TABS.filter(t => t.k !== 'ambiguous' || R.ambiguous.length)
+      .map(t => `<button class="tab ${t.k === curTab ? 'active' : ''}" data-k="${t.k}">${t.t}<span class="c">${R[t.k].length}</span></button>`).join('');
+    document.querySelectorAll('.tab').forEach(b => b.onclick = () => { curTab = b.dataset.k; $('#search').value = ''; renderTabs(); renderTable(); });
+  }
+
+  function filtered(t) {
+    const q = $('#search').value.trim().toLowerCase();
+    const list = R[t.k];
+    if (!q) return list;
+    return list.filter(r => [r.id, r.name, r.codeRaw, r.gtinRaw, r.newCode, r.rec && r.rec.name, r.rec && r.rec.codeRaw, r.hrec && r.hrec.name]
+      .some(v => v && String(v).toLowerCase().includes(q)));
+  }
+
+  function renderTable() {
+    const t = TABS.find(x => x.k === curTab);
+    $('#tabDesc').innerHTML = t.d;
+    $('#selCtl').classList.toggle('hidden', !t.sel);
+    const list = filtered(t);
+    const shown = list.slice(0, ROW_LIMIT);
+    const head = (t.sel ? '<th>✓</th>' : '') + t.cols.map(c => `<th>${c}</th>`).join('');
+    const body = shown.map(r => {
+      const cells = t.row(r).map(c => String(c).startsWith('<td') ? c : `<td>${c}</td>`).join('');
+      const cb = t.sel ? `<td><input type="checkbox" data-id="${esc(r.id)}" ${sel[t.k].has(r.id) ? 'checked' : ''}></td>` : '';
+      return `<tr>${cb}${cells}</tr>`;
+    }).join('');
+    $('#tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${t.cols.length + 1}" style="text-align:center;color:var(--muted);padding:20px">لا يوجد بنود</td></tr>`}</tbody>`;
+    $('#more').textContent = list.length > ROW_LIMIT ? `معروض أول ${ROW_LIMIT} من ${list.length}. استخدم البحث أو صدّر Excel عشان تشوف الكل.` : '';
+    if (t.sel) $('#tbl').querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => {
+      cb.checked ? sel[t.k].add(cb.dataset.id) : sel[t.k].delete(cb.dataset.id); renderSql();
+    });
+  }
+  $('#search').oninput = () => renderTable();
+  $('#selAll').onclick = () => { filtered(TABS.find(x => x.k === curTab)).forEach(r => sel[curTab].add(r.id)); renderTable(); renderSql(); };
+  $('#selNone').onclick = () => { filtered(TABS.find(x => x.k === curTab)).forEach(r => sel[curTab].delete(r.id)); renderTable(); renderSql(); };
+
+  /* ---------------- SQL ---------------- */
+  function renderSql() {
+    const pick = k => R[k].filter(r => sel[k].has(r.id));
+    const codeOld = pick('codeUpdates'), codeG = pick('gtinCodeSuggest');
+    const prices = [...pick('priceConfirmed'), ...pick('priceReview')];
+    const gtins = pick('gtinDiff');
+    const now = new Date();
+    const stamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+
+    const L = [];
+    L.push('-- =====================================================');
+    L.push('-- SFDA ⇄ Advac HIS update script');
+    L.push('-- SFDA file date : ' + (sfdaDate || '-'));
+    L.push('-- Generated      : ' + now.toLocaleString('en-GB'));
+    L.push('-- =====================================================');
+    L.push('');
+    L.push('-- نسخة احتياطية من جدول الأصناف قبل التحديث');
+    L.push(`SELECT * INTO AZITMS_BK_${stamp} FROM AZITMS;`);
+    L.push('');
+    L.push('BEGIN TRAN;');
+    L.push('');
+    const block = (title, lines) => { if (!lines.length) return; L.push('-- ---- ' + title + ' (' + lines.length + ') ----'); L.push(...lines); L.push(''); };
+    block('تحديث كود SFDA القديم إلى الجديد', SFDACore.sqlCodeUpdates(codeOld));
+    block('إضافة/تصحيح كود SFDA من الباركود', SFDACore.sqlCodeByItem(codeG));
+    block('تحديث سعر الجمهور SPRC6', SFDACore.sqlPrices(prices));
+    block('تحديث الباركود GTIN', SFDACore.sqlGtin(gtins));
+    L.push('COMMIT TRAN;');
+    L.push('-- لو في مشكلة: استبدل COMMIT TRAN بـ ROLLBACK TRAN قبل التشغيل');
+
+    $('#sql').value = L.join('\n');
+    $('#sqlsum').innerHTML = `<span>تحديث كود قديم: <b>${codeOld.length}</b></span><span>كود من الباركود: <b>${codeG.length}</b></span><span>أسعار: <b>${prices.length}</b></span><span>باركود: <b>${gtins.length}</b></span>`;
+  }
+  $('#copySql').onclick = async () => {
+    try { await navigator.clipboard.writeText($('#sql').value); } catch { $('#sql').select(); document.execCommand('copy'); }
+    $('#copySql').textContent = 'تم النسخ ✓'; setTimeout(() => $('#copySql').textContent = 'نسخ السكريبت', 1500);
+  };
+  $('#dlSql').onclick = () => {
+    const blob = new Blob(['﻿' + $('#sql').value], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `SFDA_update_${sfdaDate || new Date().toISOString().slice(0, 10)}.sql`; a.click();
+  };
+
+  /* ---------------- Excel export ---------------- */
+  $('#exportXlsx').onclick = () => {
+    const wb = XLSX.utils.book_new();
+    TABS.forEach(t => {
+      if (!R[t.k].length) return;
+      const ws = XLSX.utils.json_to_sheet(R[t.k].map(t.xl));
+      XLSX.utils.book_append_sheet(wb, ws, t.t.replace(/[\\\/\?\*\[\]:]/g, '-').slice(0, 31));
+    });
+    XLSX.writeFile(wb, `SFDA_compare_${sfdaDate || new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+})();
+</script>
+</body>
+</html>
